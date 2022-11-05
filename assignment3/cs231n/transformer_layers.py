@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import math
+import numpy as np
 
 """
 This file defines layer types that are commonly used for transformers.
@@ -38,7 +39,12 @@ class PositionalEncoding(nn.Module):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        i, j = np.indices((max_len, embed_dim))
+        P = np.where(j % 2 == 0,
+                      np.sin(i * np.power(10000, -j / embed_dim)), 
+                      np.cos(i * np.power(10000, -(j-1) / embed_dim))
+                      )
+        pe[0] = torch.tensor(P)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -62,7 +68,7 @@ class PositionalEncoding(nn.Module):
         """
         N, S, D = x.shape
         # Create a placeholder, to be overwritten by your code below.
-        output = torch.empty((N, S, D))
+        # output = torch.empty((N, S, D))
         ############################################################################
         # TODO: Index into your array of positional encodings, and add the         #
         # appropriate ones to the input sequence. Don't forget to apply dropout    #
@@ -70,7 +76,8 @@ class PositionalEncoding(nn.Module):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        output = x + self.get_buffer('pe')[:, :S, :]
+        output = self.dropout(output)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -165,7 +172,26 @@ class MultiHeadAttention(nn.Module):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        H = self.n_head
+
+        # create K, Q, and V and then: (N,T,E) -> (N,H,T,E/H)
+        K = self.key(key).view(N, T, H, E//H).moveaxis(1, 2)
+        Q = self.query(query).view(N, S, H, E//H).moveaxis(1, 2)
+        V = self.value(value).view(N, T, H, E//H).moveaxis(1, 2)
+
+        # (N,H,S,E/H) @ (N,H,E/H,T) -> (N,H,S,T)
+        output = Q @ K.transpose(2, 3) / math.sqrt(E / H)
+
+        if attn_mask is not None:
+            output = output.masked_fill(attn_mask==0, -torch.inf)
+
+        # (N,H,S,T) @ (N,H,T,E/H) -> (N,H,S,E/H)
+        output = self.attn_drop(F.softmax(output, dim=-1)) @ V
+
+        # if attn_mask is not None:
+        #     output = output.masked_fill(attn_mask==0, 0)
+
+        output = self.proj(output.moveaxis(1, 2).reshape(N, S, E))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################

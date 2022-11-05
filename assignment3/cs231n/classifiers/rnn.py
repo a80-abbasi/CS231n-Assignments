@@ -238,15 +238,17 @@ class CaptioningRNN:
 
         h0, _ = affine_forward(features, W_proj, b_proj)
         input_word = self._start * np.ones((N, 1))
+        input_word = input_word.astype(int)
 
         for t in range(max_length):
-          input_embed = word_embedding_forward(input_word, W_embed)[:, 0, :]
-          next_h, _ = rnn_step_forward(input_embed, h0, Wx, Wh, b)
-          scores = affine_forward(next_h, W_vocab, b_vocab)
-          next_word = np.argmax(scores, axis=1, keepdims=True)
-          captions[t] = next_word
+          input_embed, _ = word_embedding_forward(input_word, W_embed)
+          next_h, _ = rnn_step_forward(input_embed[:, 0, :], h0, Wx, Wh, b)
+          scores, _ = affine_forward(next_h, W_vocab, b_vocab)
+          next_word = np.argmax(scores, axis=1)
+          captions[:, t] = next_word
           
-          input_word = next_word
+          input_word = next_word.reshape((N, 1))
+          h0 = next_h
 
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****

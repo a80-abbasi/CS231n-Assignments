@@ -95,7 +95,7 @@ class CaptioningTransformer(nn.Module):
 
         image_features = self.visual_projection(features).view((N, 1, -1))
 
-        mask = torch.tril(torch.ones(T, T))
+        mask = torch.tril(torch.ones(T, T))  # tril or triu?
         transformer_output = self.transformer(caption_embed, image_features, mask)
 
         scores = self.output(transformer_output)

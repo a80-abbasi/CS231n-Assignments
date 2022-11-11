@@ -299,6 +299,10 @@ def sigmoid(x):
     return top / (1 + z)
 
 
+def sigmoid(x: np.ndarray):
+    return 1 / (1 + np.exp(-x))
+
+
 def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     """Forward pass for a single timestep of an LSTM.
 
@@ -327,7 +331,18 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    A = x @ Wx + prev_h @ Wh + b
+    A_i, A_f, A_o, A_g = np.split(A, 4, axis=1)
+    I = sigmoid(A_i)
+    F = sigmoid(A_f)
+    O = sigmoid(A_o)
+    G = np.tanh(A_g)
+    
+    next_c = F * prev_c + I * G
+    next_c_tanh = np.tanh(next_c)
+    next_h = O * next_c_tanh
+
+    cache = prev_c, prev_h, x, Wx, Wh, I, F, O, G, next_c_tanh
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -362,7 +377,27 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    prev_c, prev_h, x, Wx, Wh, I, F, O, G, next_c_tanh = cache
+    dO = dnext_h * next_c_tanh
+    dnext_c_tanh = dnext_h * O
+    # d/dz tanh(z) = 1 - tanh(z) ** 2
+    dnext_c = dnext_c + dnext_c_tanh * (1 - next_c_tanh ** 2)
+    dF = dnext_c * prev_c
+    dprev_c = dnext_c * F
+    dI = dnext_c * G
+    dG = dnext_c * I
+    # d/dz sigmoid(z) = sigmoid(z) (1 - sigmoid(z))
+    dA_i = dI * I * (1 - I)
+    dA_f = dF * F * (1 - F)
+    dA_o = dO * O * (1 - O)
+    dA_g = dG * (1 - G ** 2)
+    dA = np.concatenate([dA_i, dA_f, dA_o, dA_g], axis=1)
+    dx = dA @ Wx.T
+    dWx = x.T @ dA
+    dprev_h = dA @ Wh.T
+    dWh = prev_h.T @ dA
+    db = dA.sum(axis=0)
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -379,7 +414,7 @@ def lstm_forward(x, h0, Wx, Wh, b):
     size of H, and we work over a minibatch containing N sequences. After running the LSTM forward,
     we return the hidden states for all timesteps.
 
-    Note that the initial cell state is passed as input, but the initial cell state is set to zero.
+    Note that the initial hidden state is passed as input, but the initial cell state is set to zero.
     Also note that the cell state is not returned; it is an internal variable to the LSTM and is not
     accessed from outside.
 
@@ -401,7 +436,22 @@ def lstm_forward(x, h0, Wx, Wh, b):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    (N, T, D) = x.shape
+    H = h0.shape[-1]
+    h = np.zeros((N, T, H))
+    prev_h = h0
+    prev_c = np.zeros_like(h0)
+    caches = []
+
+    for t in range(T):
+        next_h, next_c, cache = lstm_step_forward(x[:, t, :], prev_h, prev_c, Wx, Wh, b)
+        caches.append(cache)
+        h[:, t, :] = next_h
+
+        prev_c = next_c
+        prev_h = next_h
+
+    cache = caches, (N, T, D, H)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -432,7 +482,25 @@ def lstm_backward(dh, cache):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    caches, (N, T, D, H) = cache
+    dx = np.zeros((N, T, D))
+    dWx = np.zeros((D, 4 * H))
+    dWh = np.zeros((H, 4 * H))
+    db = np.zeros(4 * H)
+    dh_next = np.zeros((N, H))
+    dc_next = np.zeros((N, H))
+    for t in range(T-1, -1, -1):
+        dh_next = dh_next + dh[:, t, :]
+        dx_t, dprev_h_t, dprev_c_t, dWx_t, dWh_t, db_t = lstm_step_backward(dh_next, dc_next, caches[t])
+        dx[:, t, :] = dx_t
+        dWx += dWx_t
+        dWh += dWh_t
+        db += db_t
+
+        dh_next = dprev_h_t
+        dc_next = dprev_c_t
+    
+    dh0 = dh_next
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################

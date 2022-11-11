@@ -108,10 +108,10 @@ def sim_positive_pairs(out_left, out_right):
 
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    out_left /= torch.linalg.norm(out_left, keepdims=True, dim=1)
-    out_right /= torch.linalg.norm(out_right, keepdims=True, dim=1)
+    left_normalized = out_left / torch.linalg.norm(out_left, keepdims=True, dim=1)
+    right_normalized = out_right / torch.linalg.norm(out_right, keepdims=True, dim=1)
     
-    pos_pairs = (out_right * out_left).sum(dim=1, keepdims=True)
+    pos_pairs = (left_normalized * right_normalized).sum(dim=1, keepdims=True)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     ##############################################################################
@@ -138,8 +138,8 @@ def compute_sim_matrix(out):
 
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    out /= torch.linalg.norm(out, dim=1, keepdims=True)
-    sim_matrix = torch.matmul(out, out.T)
+    out_normalized = out / torch.linalg.norm(out, dim=1, keepdims=True)
+    sim_matrix = torch.matmul(out_normalized, out_normalized.T)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 

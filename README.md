@@ -12,6 +12,7 @@ My solutions to assignments of the Convolutional Neural Networks for Visual Reco
   - Q3: Dropout
   - Q4: Convolutional Neural Networks
   - Q5: PyTorch on CIFAR-10
+  - Q6: Network Visualization: Saliency Maps, Class Visualization, and Fooling Images
 * Assignment 3:
   - Q1: Image Captioning with Vanilla RNNs
   - Q2: Image Captioning with Transformers

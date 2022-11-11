@@ -138,6 +138,7 @@ def compute_sim_matrix(out):
 
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
+    # encountered some weird erro because of using an inplace /= in this line!
     out_normalized = out / torch.linalg.norm(out, dim=1, keepdims=True)
     sim_matrix = torch.matmul(out_normalized, out_normalized.T)
 
